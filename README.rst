@@ -1,3 +1,5 @@
+我将tclab fork出来，主要是使用labtime这个类来做仿真加速实现Gravity-Drained Tanks ，具体物理背景的介绍可以参考John教授的视频https://www.youtube.com/watch?v=FMs00ovzpoI ,抱歉，我不想学rst文件的语法了，链接凑合看吧。
+
 TCLab: Temperature Control Laboratory
 =====================================
 
