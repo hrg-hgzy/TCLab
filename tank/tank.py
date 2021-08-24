@@ -1,30 +1,37 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import odeint
-import tclab
 from tclab import labtime
+
+
+if_log = False
 
 
 
 class gravtank():
     
-    def __init__(self, name='', A=1, Cv=1):
+    def __init__(self, name='', A=1, Cv=1, hlimit=500):
         self.name = name
         self.A = A
         self.Cv = Cv
+        self.hlimit = hlimit
         self._log = []
         self.qin = 0
-        self.tstart = labtime.time()  # start time
-        self.tlast = self.tstart      # last update time
     
     def qout(self,h):
         return self.Cv*np.sqrt(float(h))
     
     def deriv(self,h,t):
+        if h < 0:
+          raise ValueError('h is negative')
         dh = (self.qin - self.qout(h))/self.A
+        if h >= self.hlimit and dh > 0:
+          return 0
         return dh
     
     def plot(self):
+        import matplotlib.pyplot as plt
+        if not self._log:
+          return
         t,qout,h = np.asarray(self._log).transpose()
         plt.plot(t,qout,label=self.name + ' qout')
         plt.plot(t,h,label=self.name + ' h')
@@ -33,11 +40,10 @@ class gravtank():
     def generator(self,dt,IC = 0):
         h = IC
         while True:
-            print('before in '+self.name)
             t,dt,self.qin = yield self.qout(h),float(h)
-            print('after in ' + self.name)
             h = odeint(self.deriv,h,[t,t+dt])[-1]
-            self._log.append([t,self.qout(h),float(h)])
+            if if_log:
+              self._log.append([t,self.qout(h),float(h)])
             t += dt
             
             
@@ -47,14 +53,20 @@ class CGravtank():
 
         if not tank1 or not tank2:
           raise ValueError('tank1 and tank2 must be defined')
+        
+        if h1 < 0 or h2 < 0:
+          raise ValueError('h1 and h2 must be positive')
 
         self.name = name
         self.ifOneTank = False
 
-        if tank1['A'] == 0 and tank1['C1'] == 0:
+        if tank1['A'] == 0 or tank1['Cv'] == 0:
           raise ValueError('tank1 A and C1 must great than 0')
-        if tank2['A'] == 0 and tank2['C1'] == 0:
+        if tank2['A'] == 0 or tank2['Cv'] == 0:
+          print("only one tank is simulated!")
           self.ifOneTank = True
+
+        
           
 
         self.tank1_obj = gravtank('tank1',\
@@ -71,8 +83,7 @@ class CGravtank():
           self.tank2.send(None)
 
         self._log = []
-        self.tstart = labtime.time()  # start time
-        self.tlast = self.tstart      # last update time
+        self.tlast = 0
         self.qin1 = 0
         self.maxstep = 0.1
     
@@ -81,6 +92,8 @@ class CGravtank():
       self.tank1_obj.plot()
       self.tank2_obj.plot()  
     def Qin(self,qin):
+        if qin < 0:
+          raise ValueError('qin is negative')
         self.qin1 = qin
         self.update()
       
@@ -92,42 +105,55 @@ class CGravtank():
         return self.h2
 
     def update(self):
-        now = labtime.time()
-        t = now 
+        if(self.tlast == 0):
+            labtime.reset()
+        t = labtime.time()
         teuler = self.tlast
         while True:
           dt = min(self.maxstep, t - teuler)
+          if dt <= 0:
+            break
           qout1,self.h1 = self.tank1.send((teuler,dt,self.qin1))
+
           if not self.ifOneTank:
             qout2,self.h2 = self.tank2.send((teuler,dt,qout1))
-          self.tlast = now 
           teuler += dt
           if teuler == t:
             break
+        self.tlast = t 
+
     
           
 def test():
-  labtime.set_rate(10)
+  labtime.set_rate(5)
   t = CGravtank(name='test',tank1={'A':5,'Cv':1},\
               tank2={'A':10,'Cv':2},h1=10,h2=10) 
-  
+  print("start simulation:") 
   for i in tclab.clock(400,adaptive=False):
     t.Qin(10) 
     labtime.stop()
     t.plot()
     plt.draw()
-    plt.pause(0.01)
+    plt.pause(0.02)
     labtime.start()
   print("plot")
   input("Press Enter to continue...")
 
   
-  
-  
-  
-  
-  
-  
+def create_tank(name,A1,Cv1,hlimit1,\
+                A2,Cv2,hlimit2,h1,h2):
+  tank1 = {
+    'A':A1,
+    'Cv':Cv1,
+    'hlimit':hlimit1
+  }
+  tank2 = {
+    'A':A2,
+    'Cv':Cv2,
+    'hlimit':hlimit2
+  }
+  return CGravtank(name=name,tank1=tank1,
+                   tank2=tank2,h1=h1,h2=h2) 
 
 if __name__ == '__main__':
     test()
