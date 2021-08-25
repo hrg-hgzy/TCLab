@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 
-if_log = True
+if_log = False
 
 
 
