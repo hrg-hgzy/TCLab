@@ -1,9 +1,11 @@
 import numpy as np
 from scipy.integrate import odeint
 from tclab import labtime
+import matplotlib.pyplot as plt
 
 
-if_log = False
+
+if_log = True
 
 
 
@@ -29,7 +31,6 @@ class gravtank():
         return dh
     
     def plot(self):
-        import matplotlib.pyplot as plt
         if not self._log:
           return
         t,qout,h = np.asarray(self._log).transpose()
@@ -44,7 +45,8 @@ class gravtank():
             h = odeint(self.deriv,h,[t,t+dt])[-1]
             if if_log:
               self._log.append([t,self.qout(h),float(h)])
-            t += dt
+            #t += dt
+
             
             
 class CGravtank():
@@ -82,20 +84,23 @@ class CGravtank():
           self.tank2 = self.tank2_obj.generator(dt=0.1,IC=h2)
           self.tank2.send(None)
 
+        labtime.start()
         self._log = []
+        #self.tlast = labtime.time()
         self.tlast = 0
         self.qin1 = 0
         self.maxstep = 0.1
     
     def plot(self):
-      plt.clf()
+      if not if_log:
+        return
       self.tank1_obj.plot()
       self.tank2_obj.plot()  
     def Qin(self,qin):
         if qin < 0:
           raise ValueError('qin is negative')
-        self.qin1 = qin
         self.update()
+        self.qin1 = qin
       
     def H1(self):
         self.update()
@@ -106,11 +111,15 @@ class CGravtank():
 
     def update(self):
         if(self.tlast == 0):
-            labtime.reset()
-        t = labtime.time()
+          self.tlast = labtime.time()
+          return
+
+        now = labtime.time()
+        t = now - self.tlast
+        
         teuler = self.tlast
         while True:
-          dt = min(self.maxstep, t - teuler)
+          dt = min(self.maxstep, now - teuler)
           if dt <= 0:
             break
           qout1,self.h1 = self.tank1.send((teuler,dt,self.qin1))
@@ -120,22 +129,34 @@ class CGravtank():
           teuler += dt
           if teuler == t:
             break
-        self.tlast = t 
+        self.tlast = now 
 
     
-          
 def test():
-  labtime.set_rate(5)
+  import tclab
+  import time
+  labtime.set_rate(10)
+
   t = CGravtank(name='test',tank1={'A':5,'Cv':1},\
               tank2={'A':10,'Cv':2},h1=10,h2=10) 
+  labtime_start = labtime.time()
+  time_start = time.time()
   print("start simulation:") 
-  for i in tclab.clock(400,adaptive=False):
+  for i in tclab.clock(400,step =1,adaptive=False):
+    t_real = time.time() - time_start
+    t_lab = labtime.time() - labtime_start
+    #print("real time = {0:4.1f}    lab time = {1:4.1f}    m.time = {1:4.1f}".format(t_real, t_lab,m.time))
+    #print("real time = {0:4.1f}    lab time = {1:4.1f}    ".format(t_real, t_lab))
+    print("tclab clock is {}".format(i))
     t.Qin(10) 
     labtime.stop()
-    t.plot()
-    plt.draw()
-    plt.pause(0.02)
+    if if_log:
+      plt.clf()
+      t.plot()
+      plt.pause(0.02)
     labtime.start()
+  if if_log:
+    plt.show()
   print("plot")
   input("Press Enter to continue...")
 
