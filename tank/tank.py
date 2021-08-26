@@ -62,9 +62,9 @@ class CGravtank():
         self.name = name
         self.ifOneTank = False
 
-        if tank1['A'] == 0 or tank1['Cv'] == 0:
-          raise ValueError('tank1 A and C1 must great than 0')
-        if tank2['A'] == 0 or tank2['Cv'] == 0:
+        if tank1['A'] <= 0 or tank1['Cv'] <= 0 or tank1['hlimit'] <= 0:
+          raise ValueError('tank1 A, C1 and hlimit must be great than 0')
+        if tank2['A'] <= 0 or tank2['Cv'] <= 0 or tank2['hlimit'] <= 0:
           print("only one tank is simulated!")
           self.ifOneTank = True
 
@@ -72,10 +72,10 @@ class CGravtank():
           
 
         self.tank1_obj = gravtank('tank1',\
-                        tank1['A'],tank1['Cv'])
+                        tank1['A'],tank1['Cv'],tank1['hlimit'])
         if not self.ifOneTank:
           self.tank2_obj = gravtank('tank2',\
-                        tank2['A'],tank2['Cv'])
+                        tank2['A'],tank2['Cv'],tank2['hlimit'])
 
         #initialize the generators
         self.tank1 = self.tank1_obj.generator(dt=0.1,IC=h1)
@@ -137,8 +137,8 @@ def test():
   import time
   labtime.set_rate(10)
 
-  t = CGravtank(name='test',tank1={'A':5,'Cv':1},\
-              tank2={'A':10,'Cv':2},h1=10,h2=10) 
+  t = CGravtank(name='test',tank1={'A':4,'Cv':15,'hlimit':12},\
+              tank2={'A':6,'Cv':10,'hlimit':20},h1=0,h2=0) 
   labtime_start = labtime.time()
   time_start = time.time()
   print("start simulation:") 
@@ -148,7 +148,7 @@ def test():
     #print("real time = {0:4.1f}    lab time = {1:4.1f}    m.time = {1:4.1f}".format(t_real, t_lab,m.time))
     #print("real time = {0:4.1f}    lab time = {1:4.1f}    ".format(t_real, t_lab))
     print("tclab clock is {}".format(i))
-    t.Qin(10) 
+    t.Qin(20) 
     labtime.stop()
     if if_log:
       plt.clf()
